@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Deteksi Objek dengan Kamera</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd"></script>
+    <style>
+        /* --- Gaya Umum --- */
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', sans-serif; }
+        body { background: #121212; color: #fff; text-align: center; padding: 20px; }
+
+        /* --- Header --- */
+        h1 { font-size: 24px; margin-bottom: 10px; }
+
+        /* --- Video --- */
+        .container { display: flex; flex-direction: column; align-items: center; gap: 15px; }
+        video { width: 100%; max-width: 400px; border-radius: 10px; box-shadow: 0 4px 10px rgba(255, 255, 255, 0.2); }
+
+        /* --- Lampu Indikator --- */
+        #lamp { 
+            width: 100px; height: 100px; border-radius: 50%; background: red; 
+            transition: 0.3s ease-in-out; box-shadow: 0 0 15px rgba(255, 0, 0, 0.7); 
+        }
+
+        /* --- Output Teks --- */
+        #output { font-size: 18px; margin-top: 10px; font-weight: bold; }
+
+        /* --- Tombol --- */
+        button { 
+            padding: 12px 20px; font-size: 16px; font-weight: bold; color: white; 
+            background: #1E88E5; border: none; border-radius: 8px; cursor: pointer; 
+            transition: 0.3s ease; box-shadow: 0 3px 10px rgba(30, 136, 229, 0.5); 
+        }
+        button:hover { background: #1565C0; }
+
+    </style>
+</head>
+<body>
+
+    <h1>🔍 Deteksi Objek dengan Kamera</h1>
+    <div class="container">
+        <div id="lamp"></div>
+        <video id="video" autoplay playsinline></video>
+        <p id="output">Mendeteksi...</p>
+        <button id="toggleCamera">🔄 Balik Kamera</button>
+    </div>
+
+    <script>
+        const video = document.getElementById('video');
+        const lamp = document.getElementById('lamp');
+        const output = document.getElementById('output');
+        const toggleCameraBtn = document.getElementById('toggleCamera');
+
+        let currentStream = null;
+        let useFrontCamera = false;
+
+        async function setupCamera() {
+            if (currentStream) {
+                currentStream.getTracks().forEach(track => track.stop()); // Matikan kamera sebelumnya
+            }
+
+            const constraints = {
+                video: { facingMode: useFrontCamera ? "user" : "environment" }
+            };
+
+            try {
+                currentStream = await navigator.mediaDevices.getUserMedia(constraints);
+                video.srcObject = currentStream;
+                return new Promise((resolve) => video.onloadedmetadata = resolve);
+            } catch (error) {
+                alert("Gagal mengakses kamera: " + error.message);
+            }
+        }
+
+        async function detectObjects() {
+            const model = await cocoSsd.load();
+            setInterval(async () => {
+                const predictions = await model.detect(video);
+                if (predictions.length > 0) {
+                    lamp.style.background = 'green'; // Lampu hijau jika ada objek
+                    lamp.style.boxShadow = "0 0 15px rgba(0, 255, 0, 0.7)";
+                    output.innerText = "✅ Objek Terdeteksi: " + predictions.map(p => p.class).join(", ");
+                } else {
+                    lamp.style.background = 'red'; // Lampu merah jika tidak ada objek
+                    lamp.style.boxShadow = "0 0 15px rgba(255, 0, 0, 0.7)";
+                    output.innerText = "❌ Tidak ada objek.";
+                }
+            }, 1000);
+        }
+
+        async function start() {
+            await setupCamera();
+            await detectObjects();
+        }
+
+        toggleCameraBtn.addEventListener("click", async () => {
+            useFrontCamera = !useFrontCamera; // Balik mode kamera
+            await setupCamera();
+        });
+
+        start();
+    </script>
+
+</body>
+</html>
